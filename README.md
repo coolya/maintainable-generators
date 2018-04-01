@@ -1,6 +1,8 @@
 # maintainable-generator
 A guide to maintain able generators in JetBrains MPS
 
+## Contributing
+The individual documents for each section are located in the `docs` folder. Clone the repo and write in your favourite editor. Or directly in the web browser for instance with https://dillinger.io 
 ## Build the site
 - Install `mkdocs` see http://www.mkdocs.org/#installation for details
 - Install the Alabaster theme https://github.com/notpushkin/mkdocs-alabaster
