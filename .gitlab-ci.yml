@@ -10,10 +10,12 @@ build:
     - pip install -r requirements.txt
     - mkdocs build
 
-deploy:
-  stage: deploy
-  script:
-    - pip install -r requirements.txt
-    - mkdocs gh-deploy
-  only:
-    - master
+
+# removed until I figute out how to push code from gitlab
+#deploy:
+#  stage: deploy
+#  script:
+#    - pip install -r requirements.txt
+#    - mkdocs gh-deploy
+#  only:
+#    - master
