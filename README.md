@@ -1,5 +1,9 @@
 # maintainable-generator
-A guide to maintain able generators in JetBrains MPS
+A guide to maintain able generators in JetBrains MPS. 
+
+You can view this guide online at: 
+
+[https://coolya.github.io/maintainable-generators/](https://coolya.github.io/maintainable-generators/)
 
 ## Contributors 
 - [Kolja Dummann](https://github.com/coolya)  
