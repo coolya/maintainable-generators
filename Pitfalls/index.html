@@ -1,0 +1,201 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <title>Common Pitfalls &mdash; Towards Maintainable MPS Generators</title>
+
+    <link rel="shortcut icon" href="../img/favicon.ico">
+    <link rel="stylesheet" href="../css/alabaster.css" type="text/css">
+    <link rel="stylesheet" href="../css/alabaster-overrides.css" type="text/css">
+
+    
+
+    
+      <script src="../search/require.js"></script>
+    
+      <script src="../search/search.js"></script>
+    
+
+    
+
+    <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+    
+  
+</head>
+<body>
+
+  <div class="document">
+    <div class="documentwrapper">
+      <div class="bodywrapper">
+        <div class="body" role="main">
+          
+            <h1 id="common-pitfalls">Common Pitfalls</h1>
+<p>The Generator language has a couple of pecularities that inexperienced developers tend to waste a lot of time on.  This listing is by no means comprehensive, but is provided in the hope that it might save future users of the Generator language some nerves.</p>
+<h2 id="broken-references">Broken References</h2>
+<p>In MPS, References break when their target node is detached. This does not only happen when explicitly calling the .detach()-method on a node, but also happens automatically when </p>
+<ol>
+<li>an existing node is assigned to a position in another Model. When moving nodes between models it is hence strongly recommended to copy them using the .copy-method</li>
+<li>the target node is contained in a root that is deleted (for instance via an Abandon-Rule or because of a Root-Mapping-Rule with “keep input root=false”). It is hence recommended to use “keep input root=true” whenever possible and to use Abandon Rules with caution.</li>
+<li>The target node is replaced using the .replace_with() or .replace_with_new() methods.</li>
+<li>A Reduction Rule is applied to the target node.</li>
+</ol>
+<h2 id="tracing">Tracing</h2>
+<p>When running a generator, an input model is transformed step-wise into an output model and in the process copied at least once per step. For debugging purposes, MPS maintains tracing information along this process, that connects each node with its predecessors / successors in previous / subsequent steps.
+This information can also be used within the generator itself, to trace nodes backwards to their origin using genContext.get original copied input by output() or forwards to the output model of the current step using genContext.get copied output by input().</p>
+<p>MPS is able to maintain this tracing information fully automatic as long as no baseLanguage is involved. However, when pre-/postprocessing-Skripts or baseLanguage-Code within Makros modifies the model, the chain of tracing information may be broken and affected nodes can no longer be traced (the methods mentioned above will simply return the node they were given as an argument in that case).</p>
+<p>There is, however, one methods for maintaining trace information even when modifying the model with baseLanguage: genContext.copy with trace(node) will create a copy of node that contrary to node.copy allows the resulting node to be traced. It is hence recommended to use copy with trace instead of copy whenever possible.</p>
+<h2 id="mapping-labels">Mapping Labels</h2>
+<h3 id="order-of-evaluation">Order of Evaluation</h3>
+<p>In general, the order of evaluation for Generator Templates is undefined. There is no reliable rule like “left-to-right”, “top-to-bottom”, etc. Even though the order seems to be deterministic within an MPS instance on one particular computer it can vary between computers and versions of MPS. Most probably this is an intentional design decision that should make MPS Templates highly parallelizable. However, updating a mapping label constitutes a side-effect and side-effects somewhat collide with this concept of parallelism. It is hence EXTREMELY IMPORTANT to use other mechanisms for ensuring that mapping labels are filled prior to being accessed.</p>
+<p>Two Mechanisms that work well in this respect are</p>
+<ul>
+<li>$MAP_SRC$-Makros have post-processing-method that is invoked in the very last phase of generation. A good strategy for reading values from a mapping label is hence to<ol>
+<li>Use a $MAP_SRC$-Makro to create concepts that must be retrieved from a mapping label.</li>
+<li>In the mapping-method, create an instance of an intermediate concept (often called a “Proxy”) to store all information necessary to retrieve the actual result from the mapping label.</li>
+<li>In the post-processing-method, retrieve the actual result from the mapping label (which in this phase has surely been filled) and substitute it for the outputNode (which is the Proxy) using the .replace with-method.</li>
+</ol>
+</li>
+<li>Reference Macros: When no additional information is necessary to retrieve a result from a mapping label, one can also use a Reference Makro. Reference Makros are also resolved in the very last phase of generation and hence also provide a safe way to use mapping labels.</li>
+</ul>
+<h3 id="implicit-node-copies">Implicit node copies</h3>
+<p>When running a generator, MPS arranges the mapping configurations into so-called “steps”. Each step takes an input model and transforms it into an output model, which is then used as the input model for the next subsequent step. Preprocessing / postprocessing skripts are run in their own mini-step before / after the mapping configuration. Since it is possible for a generator to also modify its input-model, MPS protects the generation input (lets call it M) by copying it into a first transient model (called M@0) as a very first step. For this reason, no template (not even the very first one) applied within a generator does work on the “original” model. They all work on copies thereof.</p>
+<p>It follows that, when using a mapping label to map some sort of source nodes to some sort of target nodes, then these source nodes do NOT come from the original input model, but from some intermediate transient model (by the way: One can determine the model any node in MPS “lives in”, using the node.model-syntax). Furthermore, since mapping labels are implemented using Java HashMaps, querying the mapping label with any other node (even when it is a copy of the one used as a key and hence has the same concept, NodeID, etc.) will NOT work.</p>
+<p>Fortunately, when trace information is maintained properly (see Section “Tracing” above), then Method genContext.get original copied input by output for (node) provides a way to trace every node in our intermediate model back to a node in the original input model that it was derived from. A good strategy to avoid the problem outlined above where the constant copying of nodes practically prohibits the use of mapping labels, is to</p>
+<ol>
+<li>properly maintain tracing information.</li>
+<li>use genContext.get original copied input by output for (node) on the nodes used as keys in the mapping label. For instance, when providing a $LOOP$-Makro with a mapping label, then the “iteration sequence”-method should apply it to every element of its result-sequence as those elements will be used as keys in the mapping label.</li>
+<li>also use genContext.get original copied input by output for (node) to the node used as key when querying the mapping label. This will ensure that both the key stored in the HashMap as well as the node used for querying are from the same model and - since NodeIDs are unique within a model, having the same nodeID implies that they are the same object.</li>
+<li>Since the value retrieved from a mapping label might also be nodes from some intermediate transient model, it is often necessary to apply genContext.get copied output by input for (node) to the result to ensure that references do not cross model boundaries.</li>
+</ol>
+<h3 id="template-calls-with-variables">Template Calls with Variables</h3>
+<p>From time to time it becomes necessary to factor some part of a larger template into a separate template fragment to make it reusable. Such template fragments can be invoked using the $CALL$ Node Macro and can also take parameters, just like functions. However, for some reason passing the value of a variable (defines using the $VAR$ Node Macro) as an actual argument causes an IllegalArgumentException, which in turn causes the result of this template call to be discarded.
+As an Example:</p>
+<pre><code>$VAR$ x $CALL$ template
+
+Inspector of $VAR$
+     | type: &lt;result-type&gt;
+     | value: (genContext, operationContext, node) -&gt; &lt;result-type&gt; { &lt;expression&gt; }
+
+Inspector of $CALL$
+     | template: template(genContext.x)
+</code></pre>
+
+<p>will cause an IllegalArgumentException, while</p>
+<pre><code>$CALL$ template
+
+Inspector of $CALL$
+     | template: template(&lt;expression&gt;)
+</code></pre>
+
+<p>works, although the two should be equivalent.
+Unfortunately, I cannot tell why this happens, I just encountered this phenomenon several times and was always able to get things to run by removing the $VAR$ and replacing all its occurrences with the <expression> used to initialize it.</p>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebarwrapper">
+        
+  <h1 class="logo"><a href="..">Towards Maintainable MPS Generators</a></h1>
+
+
+
+        
+          
+
+
+
+<h3>Table Of Contents</h3>
+
+<nav>
+  
+  
+    <ul>
+    
+      <li><a href="#broken-references">Broken References</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#tracing">Tracing</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#mapping-labels">Mapping Labels</a></li>
+      <ul>
+    
+      <li><a href="#order-of-evaluation">Order of Evaluation</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#implicit-node-copies">Implicit node copies</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#template-calls-with-variables">Template Calls with Variables</a></li>
+      <ul>
+    
+  </ul>
+    
+  </ul>
+    
+  </ul>
+  
+
+  
+</nav>
+          
+  <h3>Related Topics</h3>
+  <ul>
+    
+      <li>Previous: <a href="../Multiple_Outputs/" title="previous chapter">
+        Multiple Output from a Single Model
+      </a></li>
+    
+    
+  </ul>
+
+        
+        <div id="searchbox" style="display: none;" role="search">
+  <h3>Quick search</h3>
+  <form class="search" action="../search.html" method="get">
+    <input name="q" type="text">
+    <input value="Go" type="submit">
+  </form>
+  <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+  </p>
+</div>
+<script type="text/javascript">
+  document.getElementById("searchbox").style.display = "block";
+</script>
+      </div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+
+  
+    <div class="footer">
+      
+      
+        
+        Powered by <a href="http://www.mkdocs.org">MkDocs 0.17.2</a>
+        &amp; <a href="https://github.com/iamale/mkdocs-alabaster">Alabaster</a>
+      
+    </div>
+  
+
+  <!--
+  MkDocs version      : 0.17.2
+  Docs Build Date UTC : 2018-04-01 13:14:10
+  -->
+</body>
+</html>

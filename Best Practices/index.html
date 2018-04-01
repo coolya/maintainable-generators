@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    <title>Best Practices &mdash; Towards Maintainable MPS Generators</title>
+
+    <link rel="shortcut icon" href="../img/favicon.ico">
+    <link rel="stylesheet" href="../css/alabaster.css" type="text/css">
+    <link rel="stylesheet" href="../css/alabaster-overrides.css" type="text/css">
+
+    
+
+    
+      <script src="../search/require.js"></script>
+    
+      <script src="../search/search.js"></script>
+    
+
+    
+
+    <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+    
+  
+</head>
+<body>
+
+  <div class="document">
+    <div class="documentwrapper">
+      <div class="bodywrapper">
+        <div class="body" role="main">
+          
+            <h1 id="best-practices">Best Practices</h1>
+<p>Fixed generator plans:
+might work in special cases when 
+GenPlans are NOT extensible
+The problem is , only the generators are involved which are listed in the genplan
+A Problem might appear during the generation of tests. If the genplan is involved in the solution/model then only the generators will be executed that are setup in the genplan. Generators for tests will not be triggered.</p>
+<p>Use the following code to prevent your generator from being applied to NodeTests: </p>
+<pre><code>--- is applicable ---
+(genContext)-&gt;boolean {
+  // will enable the usage of this rootnode in nodetests
+  !genContext.originalModel.nodes(&lt;all&gt;).any({~it =&gt; it.concept.getLanguage().getQualifiedName().startsWith(&quot;jetbrains.mps.lang.test&quot;); });
+}
+</code></pre>
+
+<h2 id="preprocessing">Preprocessing</h2>
+<p>Pre processing is often an easy </p>
+<ul>
+<li>Preprocessing scripts<ul>
+<li>manipulate the input model in a way it’s easier to use</li>
+<li>allow easy debugging on the generated code</li>
+<li>Intermediate languages for generation</li>
+<li>sometimes it’s easier to create a new intermediate language in the generator language itself and use preproc. scripts to transform parts of the input model to the intermediate language instances afterwards the reduction rules need only to take care about reducing the intermediate language instances, which makes reduction rules smaller</li>
+</ul>
+</li>
+</ul>
+<h2 id="reduction-rules">Reduction Rules</h2>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+      <div class="sphinxsidebarwrapper">
+        
+  <h1 class="logo"><a href="..">Towards Maintainable MPS Generators</a></h1>
+
+
+
+        
+          
+
+
+
+<h3>Table Of Contents</h3>
+
+<nav>
+  
+  
+    <ul>
+    
+      <li><a href="#preprocessing">Preprocessing</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#reduction-rules">Reduction Rules</a></li>
+      <ul>
+    
+  </ul>
+    
+  </ul>
+  
+
+  
+</nav>
+          
+  <h3>Related Topics</h3>
+  <ul>
+    
+      <li>Previous: <a href=".." title="previous chapter">
+        Home
+      </a></li>
+    
+    
+      <li>Next: <a href="../Complex/" title="next chapter">
+        Complex Multistage Generators
+      </a></li>
+    
+  </ul>
+
+        
+        <div id="searchbox" style="display: none;" role="search">
+  <h3>Quick search</h3>
+  <form class="search" action="../search.html" method="get">
+    <input name="q" type="text">
+    <input value="Go" type="submit">
+  </form>
+  <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+  </p>
+</div>
+<script type="text/javascript">
+  document.getElementById("searchbox").style.display = "block";
+</script>
+      </div>
+    </div>
+    <div class="clearer"></div>
+  </div>
+
+  
+    <div class="footer">
+      
+      
+        
+        Powered by <a href="http://www.mkdocs.org">MkDocs 0.17.2</a>
+        &amp; <a href="https://github.com/iamale/mkdocs-alabaster">Alabaster</a>
+      
+    </div>
+  
+
+  <!--
+  MkDocs version      : 0.17.2
+  Docs Build Date UTC : 2018-04-01 13:14:10
+  -->
+</body>
+</html>
