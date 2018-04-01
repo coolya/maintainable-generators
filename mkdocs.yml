@@ -1,2 +1,9 @@
 site_name: Towards Maintainable MPS Generators
 theme: alabaster
+
+pages:
+    - Home: index.md
+    - Best Practices: Best Practices.md
+    - Complex Multistage Generators: Complex.md
+    - Multiple Output from a Single Model: Multiple_Outputs.md
+    - Common Pitfalls: Pitfalls.md
