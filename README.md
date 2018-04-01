@@ -2,10 +2,10 @@
 A guide to maintain able generators in JetBrains MPS
 
 ## Contributors 
-- Kolja Dummann - @coolya 
-- Björn Engelmann - @bj2015 [*big thank you for documenting your journey into MPS generators and putting it in the common pitfalls section!*]
-- Alexander Rimer - @arimer
-- Joao Silveira - @joao-silveira
+- [Kolja Dummann](https://github.com/coolya)  
+- [Björn Engelmann](https://github.com/bj2015) [*big thank you for documenting your journey into MPS generators and putting it in the common pitfalls section!*]
+- [Alexander Rimer](https://github.com/arimer)
+- [Joao Silveira](https://github.com/joao-silveira)
 ## Contributing
 The individual documents for each section are located in the `docs` folder. Clone the repo and write in your favourite editor. Or directly in the web browser for instance with https://dillinger.io 
 ## Build the site
