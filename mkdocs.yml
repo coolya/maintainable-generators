@@ -1,6 +1,10 @@
-site_name: Towards Maintainable MPS Generators
+site_name: Maintainable MPS Generators
+site_description: A guide towards maintainable MPS generators
 theme: alabaster
-
+extra:
+  show_powered_by: false
+  extra_nav_links:
+    Edit on GitHub: https://github.com/coolya/maintainable-generators
 pages:
     - Home: index.md
     - Best Practices: Best Practices.md
