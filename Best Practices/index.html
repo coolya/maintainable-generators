@@ -5,7 +5,7 @@
   
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
-    <title>Best Practices &mdash; Towards Maintainable MPS Generators</title>
+    <title>Best Practices &mdash; Maintainable MPS Generators</title>
 
     <link rel="shortcut icon" href="../img/favicon.ico">
     <link rel="stylesheet" href="../css/alabaster.css" type="text/css">
@@ -68,8 +68,94 @@
 
 <p>This will stop generation after the current generation phase is complete. No other generators will execute afterwards, but it will collect all errors from the currently executed generator. It also allows to specify a node where the user is taken to when the messages is clicked. Together with the <code>genContext.get original copied input for (node)</code> pattern it takes the user directly to the input in the original model. </p>
 <h2 id="copy-and-reduce">Copy and Reduce</h2>
-<p>When generating output from a list of items or a single child node the first idea if often to use a <code>$LOOP$</code> macro or to do the transformation <em>in place</em>. While this looks easy in the first place it also limits extensibility. It is often much better to avoid this kind of pattern and use a combination for <code>$COPY_SRC$</code>/<code>$COPY_SRCL$</code> and a reduction rule for the concept. This allows extensions to contribute their own reduction rules for their concepts. Incase a <code>$LOOP$</code> macro would be used the only option to extend the generator would be to essentially copy the complete mapping and have the generator run before the one of the extended language is invoked. </p>
+<p>When generating output from a list of items or a single child node the first idea is often to use a <code>$LOOP$</code> macro or to do the transformation <em>in place</em>. While this looks easy in the first place it also limits extensibility. It is often much better to avoid this kind of pattern and use a combination for <code>$COPY_SRC$</code>/<code>$COPY_SRCL$</code> and a reduction rule for the concept. This allows extensions to contribute their own reduction rules for their concepts. Incase a <code>$LOOP$</code> macro would be used the only option to extend the generator would be to essentially copy the complete mapping and have the generator run before the one of the extended language is invoked. </p>
+<p>Here is an example from the mpsutil codebase: </p>
+<pre><code>new AfterExtension(&quot;$wizId&quot;, &quot;$stepId&quot;, new arraylist&lt;AbstractWizardStepEx&gt;{$LOOP$new -&gt;$dummy_step()})
+</code></pre>
+
+<p>It assumes that all elements of the <code>arraylist</code> are created by invoking a constructor of a class. If somebody wants to extend this behaviour and wants to include a singleton object into the list it's impossible. The code has been rewritten to:</p>
+<pre><code>new AfterExtension(&quot;$wizId&quot;, &quot;$stepId&quot;, new arraylist&lt;AbstractWizardStepEx&gt;{$COPY_SRCL$new dummy_step()})
+
+// and a reduction rule for the steps
+
+concept Step       --&gt; &lt;T  new -&gt;$dummy_step()  T&gt; 
+
+inheritors true                                     
+condition &lt;always&gt;                                  
+
+</code></pre>
+
+<p>Another pattern to avoid this limitation is to use a <code>$LOOP$</code> macro but delegate the actual reduction into a template switch by calling it with a. <code>$SWITCH$</code> macro:</p>
+<pre><code>new ConceptEvaluatorBase(concept/-&gt;$ConceptEvaluator/, $true, $LOOP$$SWITCH$ populateConstraintconstraints) { 
+</code></pre>
+
 <h2 id="prefer-switches-over-ifs">Prefer Switches over Ifs</h2>
+<p>In cases where the generator should produce output based on a condition the common macro to use is usually the <code>$IF$</code> macro. There is nothing wrong with this per se but in cases where this condition is based on a model element other than a boolean property it is usually a smell that it should be replaced with a template switch. </p>
+<p>The following example is from the mebddr codebase.</p>
+<pre><code>$IF$return $COPY_SRC$null; / 
+$ELSE$&lt;T  $COPY_SRCL$return;  T&gt;
+
+--- inspector --- 
+conditional branch                                                                                                    
+
+comment : &lt;none&gt;                                                                                                      
+mapping label : &lt;no label&gt;                                                                                            
+condition : (genContext, node, operationContext)-&gt;boolean { 
+  node.evaluator.isInstanceOf(ConceptEvaluatorInline); 
+}
+alternative : &lt;T  $COPY_SRCL$return;  T&gt;                                                                              
+</code></pre>
+
+<p>The code essentially checks what kind of concept is in the <code>evaluator</code> child role and then changes the way in which it generates the code. It handles the two cases that were assumed in the original language perfectly well, but in case we want to introduce a custom <code>Evaluator</code> it would fail. </p>
+<p>is better rewritten like this:</p>
+<pre><code>
+// replacment for the $IF$
+
+$SWITCH$ evaluatorImplementationreturn null;
+
+--- inspector ---
+
+switch templates by input node                                                  
+
+comment : &lt;none&gt;                                                                
+mapping label : &lt;no label&gt;                                                      
+use input : (genContext, node, operationContext)-&gt;node&lt;&gt; { 
+  node.evaluator; 
+}
+
+template switch : evaluatorImplementation                                       
+
+// the template switch
+
+template switch evaluatorImplementation extends &lt;none&gt;                  
+
+parameters                                                              
+&lt;&lt; ... &gt;&gt;                                                               
+
+  null-input message: &lt;none&gt;                                            
+
+  cases:                                                                
+
+     concept ConceptEvaluatorInline --&gt; &lt;T  return $COPY_SRC$null;  T&gt; 
+
+     inheritors true                                                    
+     condition &lt;always&gt;                                                 
+     concept ConceptEvaluatorBody --&gt; &lt;T  $COPY_SRCL$return;  T&gt; 
+
+     inheritors true                                                    
+     condition &lt;always&gt;                                                 
+
+
+  default: DISMISS TOP RULE error : can not handle evaluator            
+
+
+</code></pre>
+
+<p>Note that the external template switch is extensible from other generators. By simply defining a extends relationship: <code>template switch mySwitch extends evaluatorImplementation</code>. This will contribute the additional cases each time the original switch is invoked. </p>
+<p>In addition the original template switch, if it doesn't have a default case, wants to print an error message. Because otherwise the template switch invocation is replaced with node that has the <code>$SWITCH$</code> macro attached. This is done via a default rule that looks like this:</p>
+<pre><code>default: DISMISS TOP RULE error : can not handle evaluator
+</code></pre>
+
 <h2 id="predefined-generator-plans">Predefined Generator Plans</h2>
 <p>In some cases defining a static generation plan can be very useful and simplify the view on which generators are engaged at which point during the generation. Though this is mostly the last option one want to take. At the moment the extensibility story for predefined generator plans is pretty limited compared to the dynamic approach with priorities. Currently you can only contribute generators to the predefined plan via extension dependency to a generator that is involved in the generation plan this generator is the executed in the same step as the extended generator. It can also cause problems in conjunction with node/editor tests. If a DevKit with a generation plan and this DevKit is used in tests, this can cause that MPS would not consider the generators of the test language. As mentioned above this is a solution that currently doesn't widely apply especially not if your languages are meant to be extended. But in some contexts where extensibility is not the main concern or even undesired using predefined generation plans can help.</p>
             
@@ -80,9 +166,11 @@
     <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
       <div class="sphinxsidebarwrapper">
         
-  <h1 class="logo"><a href="..">Towards Maintainable MPS Generators</a></h1>
+  <h1 class="logo"><a href="..">Maintainable MPS Generators</a></h1>
 
 
+
+  <p class="blurb">A guide towards maintainable MPS generators</p>
 
         
           
@@ -130,6 +218,13 @@
   
 
   
+    <hr>
+    <ul>
+      
+        <li class="toctree-l1"><a href="https://github.com/coolya/maintainable-generators">Edit on GitHub</a></li>
+      
+    </ul>
+  
 </nav>
           
   <h3>Related Topics</h3>
@@ -169,16 +264,12 @@
     <div class="footer">
       
       
-        
-        Powered by <a href="http://www.mkdocs.org">MkDocs 0.17.2</a>
-        &amp; <a href="https://github.com/iamale/mkdocs-alabaster">Alabaster</a>
-      
     </div>
   
 
   <!--
   MkDocs version      : 0.17.2
-  Docs Build Date UTC : 2018-04-01 20:56:58
+  Docs Build Date UTC : 2018-04-02 12:04:05
   -->
 </body>
 </html>
