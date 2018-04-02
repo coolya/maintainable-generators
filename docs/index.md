@@ -1,6 +1,6 @@
 # Towards Maintainable Generators 
 
-This website aims to provide a set of best practices for maintainable generators and a set of rules when to apply them. 
+This website aims to provide a set of best practices for maintainable generators and a set of rules when to apply them. We do not explain the very basics of writing MPS generators so it's audience is clearly for people with experience in writing generators in MPS and it mostly covers advanced patterns and concepts.
 
 ## Introduction 
 
