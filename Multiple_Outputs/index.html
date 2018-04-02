@@ -34,6 +34,44 @@
         <div class="body" role="main">
           
             <h1 id="multiple-outputs-from-a-single-model">Multiple Outputs from a Single Model</h1>
+<p>In many cases it is desired to generate multiple independent outputs from the same input model. For example XML descriptions of interfaces, C code for testing implementations of these interfaces and JavaScript that could talk to such implementations from the browser. For reasons of loose coupling it desirable that these three generators could evolve independently. A naive solution might be to copy the in each generator and then reduce it. Since mapping rules are usually written for individual concepts the rule would need to ensure that they only handle nodes that are related to their output. This pollutes the conditions of reduction rule quite quickly and also prevent reuse of generators because they become tightly coupled. It also doesn't solve the problem that the output will all end up in the same <code>source_gen</code> folder.</p>
+<h2 id="generator-configuration-pattern">Generator Configuration Pattern</h2>
+<p>A pattern that is proven in use in many projects is to separate generation and <em>the model</em> from each other. <em>The model</em> contains the actual content that we want to generate and then there are (several) models that only contain a concept specifically introduced to configure the generation. </p>
+<blockquote>
+<p><em>Note: For instance the mbeddrs <code>BuildConfiguration</code> is such a concept. While it was not only introduced for this reason it also fulfils this purpose. It can be used to generate tests into a different location than the production code.</em></p>
+</blockquote>
+<p>These generations configuration concepts usually contain either a reference to complete model they are supposed to generator or to content of the model that should get generated. This mostly depends on the needs of the users.</p>
+<p>The first things that happens during generation is that all the relevant content from <em>the model</em> is copied into the currently generated model (the model that only contains the configuration). After that everything in the generator chain works <em>as usual</em>. And all generators can safely assume that all the content they are handling is supposed to be handled by these rules. There is no need for additional checking, etc.</p>
+<p>This also allows to generate different outputs concurrently. As we have a single model per output we want to produce MPS can generate them concurrently, they only require read access to the model with the actual content. </p>
+<p>There are different ways such generator configurations could refer to the input to generate:</p>
+<ol>
+<li>A reference to a complete model. <code>ModelRefExpression</code> is a handy concept here. </li>
+<li>A reference to one or more root nodes of the model get generated. If the language supports cross root node references there are two options as well:<ul>
+<li>References to the roots nodes the user cares about and the generator will copy the dependencies in regardless if the user specified them. </li>
+<li>References to all root nodes the generator needs for generation need to be specified explicitly. This is often desired in case the generator configuration has more semantics to it then just copying the content. See mbeddr <code>BuildConfiguration</code> as an example where the order of these elements for instance is the order in which the C compiler will evaluate the files.</li>
+</ul>
+</li>
+</ol>
+<h2 id="implementation">Implementation</h2>
+<p>When implementing such generators there are some things to keep in mind. Instead of using the <code>BuildConfiguration</code> of mbeddr as an example we are using a very simple excerpt from other generators here:</p>
+<pre><code>nlist&lt;IConfigItem&gt; configs = model.nodes(IConfigItem); 
+
+sequence&lt;node&lt;ConfigRootRef&gt;&gt; refs = configs.rootRefs; 
+list&lt;node&lt;Root&gt;&gt; roots = refs.compChunk.toList; 
+
+refs.forEach({~ref =&gt; roots.addAll(ref.collectMissingRoots(roots).toList); }); 
+
+nlist&lt;&gt; nodes2copy = new nlist&lt;&gt;; 
+nodes2copy.addAll(roots); 
+
+nlist&lt;&gt; copies = genContext.copy with trace nodes2copy; 
+
+model.roots(&lt;all&gt;).forEach({~it =&gt; it.detach; }); 
+
+copies.forEach({~it =&gt; model.add root(it); });
+</code></pre>
+
+<p>While there is some code to collect the dependencies at first the most important line is: <code>nlist&lt;&gt; copies = genContext.copy with trace nodes2copy;</code>. This uses the <code>copy with trace</code> method of the generation context rather then iterating over the nodes one by one and call <code>.copy</code> on them. This has one major advantage: MPS will take care of changing the references in the nodes that are copied. This way all references to nodes that are in the list of nodes to be copied are then pointing to the copy. This saves a lot of effort in setting references manually after copying the nodes manually. Because we want the references in the model that we generate to point in that model and not to nodes from the original input. Otherwise we wouldn't be able to use mapping labels to look out the output that ware produced for node during generation.</p>
             
           
         </div>
@@ -59,6 +97,16 @@
   
   
     <ul>
+    
+      <li><a href="#generator-configuration-pattern">Generator Configuration Pattern</a></li>
+      <ul>
+    
+  </ul>
+    
+      <li><a href="#implementation">Implementation</a></li>
+      <ul>
+    
+  </ul>
     
   </ul>
   
@@ -115,7 +163,7 @@
 
   <!--
   MkDocs version      : 0.17.2
-  Docs Build Date UTC : 2018-04-02 12:04:05
+  Docs Build Date UTC : 2018-04-02 17:41:05
   -->
 </body>
 </html>
