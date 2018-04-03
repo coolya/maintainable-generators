@@ -18,6 +18,7 @@ MPS is able to maintain this tracing information fully automatic as long as no b
 There is, however, one methods for maintaining trace information even when modifying the model with baseLanguage: genContext.copy with trace(node) will create a copy of node that contrary to node.copy allows the resulting node to be traced. It is hence recommended to use copy with trace instead of copy whenever possible.
 
 ## Mapping Labels 
+
 ### Order of Evaluation 
 In general, the order of evaluation for Generator Templates is undefined. There is no reliable rule like “left-to-right”, “top-to-bottom”, etc. Even though the order seems to be deterministic within an MPS instance on one particular computer it can vary between computers and versions of MPS. Most probably this is an intentional design decision that should make MPS Templates highly parallelizable. However, updating a mapping label constitutes a side-effect and side-effects somewhat collide with this concept of parallelism. It is hence EXTREMELY IMPORTANT to use other mechanisms for ensuring that mapping labels are filled prior to being accessed.
 
@@ -35,7 +36,9 @@ Two Mechanisms that work well in this respect are
 
 When running a generator, MPS arranges the mapping configurations into so-called “steps”. Each step takes an input model and transforms it into an output model, which is then used as the input model for the next subsequent step. Preprocessing / postprocessing skripts are run in their own mini-step before / after the mapping configuration. Since it is possible for a generator to also modify its input-model, MPS protects the generation input (lets call it M) by copying it into a first transient model (called M@0) as a very first step. For this reason, no template (not even the very first one) applied within a generator does work on the “original” model. They all work on copies thereof.
 
-It follows that, when using a mapping label to map some sort of source nodes to some sort of target nodes, then these source nodes do NOT come from the original input model, but from some intermediate transient model (by the way: One can determine the model any node in MPS “lives in”, using the node.model-syntax). Furthermore, since mapping labels are implemented using Java HashMaps, querying the mapping label with any other node (even when it is a copy of the one used as a key and hence has the same concept, NodeID, etc.) will NOT work.
+It follows that, when using a mapping label to map some sort of source nodes to some sort of target nodes, then these source nodes do NOT come from the original input model, but from some intermediate transient model (by the way: One can determine the model any node in MPS “lives in”, using the node.model-syntax). 
+
+<!-- Furthermore, since mapping labels are implemented using Java HashMaps, querying the mapping label with any other node (even when it is a copy of the one used as a key and hence has the same concept, NodeID, etc.) will NOT work. -->
 
 Fortunately, when trace information is maintained properly (see Section “Tracing” above), then Method genContext.get original copied input by output for (node) provides a way to trace every node in our intermediate model back to a node in the original input model that it was derived from. A good strategy to avoid the problem outlined above where the constant copying of nodes practically prohibits the use of mapping labels, is to
 
